@@ -9,7 +9,22 @@ class EcapaVerifier:
             source=model_source,
             savedir=f"models/pretrained/{model_source.split('/')[-1]}"
         )
-
+    def extract_embedding(self, filepath):
+        """Extracts the raw 192-dimensional voice print for bulk testing."""
+        signal, fs = torchaudio.load(filepath)
+        
+        # Ensure 16kHz for ECAPA
+        if fs != 16000:
+            signal = torchaudio.functional.resample(signal, orig_freq=fs, new_freq=16000)
+            
+        # Move audio to the same device as the model (CPU/GPU)
+        signal = signal.to(self.model.device)
+        
+        with torch.no_grad():
+            embeddings = self.model.encode_batch(signal)
+            
+        return embeddings[0, 0].cpu().numpy()
+    
     def verify_pair(self, path1, path2, threshold=0.25):
         """
         Compares two audio files. 
