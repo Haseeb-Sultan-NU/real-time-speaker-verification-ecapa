@@ -1,0 +1,61 @@
+import torch
+import torchaudio
+import torch.nn.functional as F
+
+class TelephonySimulator:
+    def __init__(self, target_sr=8000):
+        self.target_sr = target_sr
+
+    def resample(self, waveform, orig_sr):
+        if orig_sr == self.target_sr:
+            return waveform
+        return torchaudio.functional.resample(waveform, orig_sr, self.target_sr)
+
+    def apply_telephony_filter(self, waveform):
+        # 300Hz - 3400Hz PSTN Bandpass
+        waveform = torchaudio.functional.highpass_biquad(waveform, self.target_sr, cutoff_freq=300.0)
+        waveform = torchaudio.functional.lowpass_biquad(waveform, self.target_sr, cutoff_freq=3400.0)
+        return waveform
+
+    def add_white_noise(self, waveform, snr_db=15):
+        signal_power = waveform.norm(p=2) ** 2 / waveform.numel()
+        noise_power = signal_power / (10.0 ** (snr_db / 10.0))
+        noise = torch.randn_like(waveform) * torch.sqrt(noise_power)
+        return waveform + noise
+
+    def apply_g729_artifacts(self, waveform):
+        """
+        Simulates G.729 compression artifacts (Quantization & Spectral Smearing).
+        """
+        # 1. Bit-depth reduction (Mimic 8kbps quantization)
+        # We squash the dynamic range to simulate the 'crunchy' vocoder sound
+        q_levels = 16  # Aggressive quantization for G.729 feel
+        waveform = torch.round(waveform * q_levels) / q_levels
+
+        # 2. Spectral Smearing (Mimic Vocoder synthesis loss)
+        # We use a very light low-pass to remove the sharp digital edges of quantization
+        waveform = torchaudio.functional.lowpass_biquad(waveform, self.target_sr, cutoff_freq=3000.0)
+        
+        return waveform
+
+    def process(self, waveform, orig_sr, snr_db=15, include_g729=False):
+        """The full production-grade pipeline."""
+        # Step 1: Resample to 8kHz (Standard Telephony)
+        wav = self.resample(waveform, orig_sr)
+        
+        # Step 2: Apply PSTN Bandpass Filter
+        wav = self.apply_telephony_filter(wav)
+        
+        # Step 3: Add Analog Line Noise
+        wav = self.add_white_noise(wav, snr_db)
+        
+        # Step 4: Apply Digital Compression Artifacts (G.729)
+        if include_g729:
+            wav = self.apply_g729_artifacts(wav)
+        
+        # Final Normalization to prevent clipping
+        max_val = torch.max(torch.abs(wav))
+        if max_val > 1.0:
+            wav = wav / max_val
+            
+        return wav, self.target_sr

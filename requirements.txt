@@ -4,3 +4,4 @@ speechbrain
 librosa
 numpy
 huggingface_hub<0.23.0
+pyannote.audio==3.0.1
