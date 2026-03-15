@@ -1,6 +1,5 @@
 import torch
 import torchaudio
-import torch.nn.functional as F
 
 class TelephonySimulator:
     def __init__(self, target_sr=8000):
@@ -23,23 +22,8 @@ class TelephonySimulator:
         noise = torch.randn_like(waveform) * torch.sqrt(noise_power)
         return waveform + noise
 
-    def apply_g729_artifacts(self, waveform):
-        """
-        Simulates G.729 compression artifacts (Quantization & Spectral Smearing).
-        """
-        # 1. Bit-depth reduction (Mimic 8kbps quantization)
-        # We squash the dynamic range to simulate the 'crunchy' vocoder sound
-        q_levels = 16  # Aggressive quantization for G.729 feel
-        waveform = torch.round(waveform * q_levels) / q_levels
-
-        # 2. Spectral Smearing (Mimic Vocoder synthesis loss)
-        # We use a very light low-pass to remove the sharp digital edges of quantization
-        waveform = torchaudio.functional.lowpass_biquad(waveform, self.target_sr, cutoff_freq=3000.0)
-        
-        return waveform
-
-    def process(self, waveform, orig_sr, snr_db=15, include_g729=False):
-        """The full production-grade pipeline."""
+    def process(self, waveform, orig_sr, snr_db=15):
+        """The full production-grade pipeline without digital artifacts."""
         # Step 1: Resample to 8kHz (Standard Telephony)
         wav = self.resample(waveform, orig_sr)
         
@@ -48,10 +32,6 @@ class TelephonySimulator:
         
         # Step 3: Add Analog Line Noise
         wav = self.add_white_noise(wav, snr_db)
-        
-        # Step 4: Apply Digital Compression Artifacts (G.729)
-        if include_g729:
-            wav = self.apply_g729_artifacts(wav)
         
         # Final Normalization to prevent clipping
         max_val = torch.max(torch.abs(wav))

@@ -1,19 +1,23 @@
+
+import sys
 import os
 import numpy as np
 from sklearn.metrics import roc_curve
 from tqdm import tqdm
-
+# --- 🩹 PYTHON PATH FIX ---
+# This forces Python to look at the root of your project so it can find the 'src' folder
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Import YOUR custom engine
 # Adjust this import path if your folders are arranged differently
 from src.verification.ecapa_engine import EcapaVerifier 
 
 # --- CONFIGURATION ---
 EVAL_DIR = "data/evaluation"
-CLEAN_DIR = os.path.join(EVAL_DIR, "clean_enrollment")
+CLEAN_DIR = os.path.join(EVAL_DIR, "telephony_verification")
 TELEPHONY_DIR = os.path.join(EVAL_DIR, "telephony_verification")
 
 # The weights Colab is currently cooking!
-FINETUNED_MODEL_PATH = "models/best_urdu_ecapa.pth"
+FINETUNED_MODEL_PATH = "models/best_urdu_triplet_ecapa.pth"
 
 def main():
     print("🚀 Starting Fine-Tuned Evaluation...")
