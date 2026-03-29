@@ -174,4 +174,4 @@ python inference/run_inference.py --input sample.wav
 ## Contact
 
 * GitHub: https://github.com/Haseeb-Sultan-NU
-* LinkedIn: [Add link]
+* LinkedIn: https://www.linkedin.com/in/haseeb-sultan-584493313/
