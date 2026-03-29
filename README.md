@@ -23,6 +23,12 @@ Production-oriented audio biometric authentication system designed for **low-lat
 
 ---
 
+| Component   | Details                                                                          |
+| ----------- | -------------------------------------------------------------------------------- |
+| Dataset     | Mozilla Common Voice (Urdu) + VoxCeleb subsets                                   |
+| Fine-Tuning | ECAPA-TDNN adapted to large Urdu dataset for improved recognition and robustness |
+
+
 ## Architecture Overview
 
 ```
