@@ -2,10 +2,14 @@ import os
 import torch
 import soundfile as sf
 import torchaudio
+import sys
 
 # 1. Trick SpeechBrain's internal check
 if not hasattr(torchaudio, "list_audio_backends"):
     torchaudio.list_audio_backends = lambda: ["soundfile"] 
+    # TEACH PYTHON TO FIND THE 'src' FOLDER
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 
 # 2. THE NUCLEAR OPTION: Completely bypass Torchaudio's broken loader
 def custom_audio_load(filepath, channels_first=True, **kwargs):
@@ -31,8 +35,8 @@ from src.verification.ecapa_engine import EcapaVerifier
 def main():
     verifier = EcapaVerifier()
     
-    file_path_1 = "data/samples/test_1.wav"
-    file_path_2 = "data/samples/test_2.wav"
+    file_path_1 = "data/samples/Haseeb_Sample_Clean.wav"
+    file_path_2 = "data/samples/Haseeb_Sample_Rough.wav"
 
     # Check if BOTH files exist
     if os.path.exists(file_path_1) and os.path.exists(file_path_2):
