@@ -1,1 +1,18 @@
-.
+
+venv/
+.env
+__pycache__/
+pretrained_models/
+*.wav
+
+# Datasets and manifest files
+data/
+
+# Pre-trained and fine-tuned model weights
+tmp_model/
+models/
+*.pth
+*.ckpt
+*.yaml
+
+models/
