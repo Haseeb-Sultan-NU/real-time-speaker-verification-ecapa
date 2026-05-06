@@ -1,165 +1,72 @@
-# ============================================================================
-# 🚨 MUST BE SET BEFORE IMPORTING TORCH
-# ============================================================================
 import os
-os.environ["TORCH_LOAD_WEIGHTS_ONLY"] = "0"
-
-import sys
 import torch
-import tempfile
-from unittest.mock import MagicMock
-
-# ============================================================================
-# 🚨 TORCHAUDIO GLOBAL MONKEYPATCH (Windows / Backend Fix)
-# ============================================================================
 import torchaudio
-
-if not hasattr(torchaudio, "list_audio_backends"):
-    torchaudio.list_audio_backends = lambda: ["soundfile"]
-
-if not hasattr(torchaudio, "set_audio_backend"):
-    torchaudio.set_audio_backend = lambda backend: None
-
-if not hasattr(torchaudio, "get_audio_backend"):
-    torchaudio.get_audio_backend = lambda: "soundfile"
-
-if "torchaudio.backend" not in sys.modules:
-    mock_backend = MagicMock()
-    mock_backend.__path__ = []
-    sys.modules["torchaudio.backend"] = mock_backend
-
-if "torchaudio.backend.common" not in sys.modules:
-    sys.modules["torchaudio.backend.common"] = MagicMock()
-
-# ============================================================================
-# 🚨 PyTorch 2.6 SAFE GLOBALS FIX FOR PYANNOTE
-# ============================================================================
-try:
-    from pyannote.audio.core.task import Specifications
-    from pyannote.audio.core.model import Model
-    from pyannote.audio.core.pipeline import Pipeline as PyannotePipeline
-
-    torch.serialization.add_safe_globals([
-        torch.torch_version.TorchVersion,
-        Specifications,
-        Model,
-        PyannotePipeline
-    ])
-except Exception:
-    pass
-# ============================================================================
-
 from pyannote.audio import Pipeline
-import soundfile as sf
 
+# Force torchaudio to use soundfile (Native Windows Fix)
+torchaudio.set_audio_backend("soundfile")
 
 class SecurityGatekeeper:
     def __init__(self, hf_token):
         print("Initializing Security Gatekeeper (pyannote.audio)...")
-
         try:
+            # use_auth_token is explicitly required for pyannote.audio 3.1.1
             self.pipeline = Pipeline.from_pretrained(
                 "pyannote/speaker-diarization-3.1",
                 use_auth_token=hf_token
             )
+            if self.pipeline is None:
+                raise ValueError("Pipeline returned None. Check HF_TOKEN and model access agreements.")
         except Exception as e:
-            print(f"[!] Failed to load pipeline. Error: {e}")
+            print(f"[!] Fatal error loading Pyannote: {e}")
             self.pipeline = None
 
     def check_audio_security(self, audio_path):
-
         if not self.pipeline:
-            return False, "Gatekeeper offline."
+            return False, "Gatekeeper offline. Check initialization."
 
         if not os.path.exists(audio_path):
             return False, "Audio file not found."
 
-        temp_path = None
-
         try:
-            # --------------------------------------------------------------
-            # Load audio
-            # --------------------------------------------------------------
-            data, samplerate = sf.read(audio_path, dtype="float32")
-            waveform = torch.from_numpy(data)
+            # 1. Native safe load
+            waveform, sample_rate = torchaudio.load(audio_path)
 
-            # --------------------------------------------------------------
-            # Ensure mono format (1, num_samples)
-            # --------------------------------------------------------------
-            if waveform.ndim == 1:
-                waveform = waveform.unsqueeze(0)
+            # 2. Force Mono
+            if waveform.shape[0] > 1:
+                waveform = waveform.mean(dim=0, keepdim=True)
 
-            elif waveform.ndim == 2:
-                # Convert stereo to mono
-                if waveform.shape[1] == 2:
-                    waveform = torch.mean(waveform, dim=1, keepdim=True).t()
-                else:
-                    waveform = waveform.t()
+            # 3. Force 16kHz Resampling
+            if sample_rate != 16000:
+                resampler = torchaudio.transforms.Resample(orig_freq=sample_rate, new_freq=16000)
+                waveform = resampler(waveform)
 
-            # --------------------------------------------------------------
-            # Pad to minimum 4 seconds (pyannote stability requirement)
-            # --------------------------------------------------------------
-            duration_sec = waveform.shape[1] / samplerate
+            # 4. Anti-Crash Padding (Prevents the std() <= 0 error on short clips)
+            min_frames = 16000 * 3 # Minimum 3 seconds
+            if waveform.shape[1] < min_frames:
+                padding = min_frames - waveform.shape[1]
+                waveform = torch.nn.functional.pad(waveform, (0, padding))
 
-            if duration_sec < 4.0:
-                pad_frames = int((4.0 - duration_sec) * samplerate)
-                waveform = torch.nn.functional.pad(waveform, (0, pad_frames))
+            # 5. Execute natively via dict
+            audio_in_memory = {"waveform": waveform, "sample_rate": 16000}
+            diarization = self.pipeline(audio_in_memory)
 
-            # --------------------------------------------------------------
-            # Save to temporary WAV (pyannote expects file path)
-            # --------------------------------------------------------------
-            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_wav:
-                temp_path = temp_wav.name
+            # 6. Parse Speakers
+            speakers = set()
+            for turn, _, speaker in diarization.itertracks(yield_label=True):
+                speakers.add(speaker)
 
-            sf.write(temp_path, waveform.squeeze().numpy(), samplerate)
+            num_speakers = len(speakers)
 
-            # --------------------------------------------------------------
-            # Run diarization
-            # --------------------------------------------------------------
-            diarization = self.pipeline(temp_path)
+            if num_speakers == 0:
+                return False, "REJECT: No human speech detected."
+            elif num_speakers > 1:
+                return False, f"REJECT: Multiple speakers ({num_speakers}) detected. Potential coercion."
+            else:
+                return True, "ACCEPT: Single, isolated speaker verified."
 
         except Exception as e:
-            return False, f"Failed to process audio: {e}"
-
-        finally:
-            if temp_path and os.path.exists(temp_path):
-                try:
-                    os.remove(temp_path)
-                except:
-                    pass
-
-        # --------------------------------------------------------------
-        # Extract unique speakers
-        # --------------------------------------------------------------
-        speakers = set()
-
-        try:
-            if hasattr(diarization, "labels"):
-                speakers = set(diarization.labels())
-            else:
-                for turn, _, speaker in diarization.itertracks(yield_label=True):
-                    speakers.add(speaker)
-        except Exception:
-            try:
-                for track in diarization.tracks():
-                    speakers.add(track.label)
-            except Exception:
-                pass
-
-        num_speakers = len(speakers)
-
-        # --------------------------------------------------------------
-        # Decision Logic
-        # --------------------------------------------------------------
-        if num_speakers == 0:
-            return False, "REJECT: No human speech detected."
-
-        elif num_speakers > 1:
-            return False, f"REJECT: Multiple speakers ({num_speakers}) detected. Potential coercion."
-
-        else:
-            return True, "ACCEPT: Single, isolated speaker verified."
-
+            return False, f"Crash during processing: {e}"
 
 if __name__ == "__main__":
     print("Security Gatekeeper module ready.")

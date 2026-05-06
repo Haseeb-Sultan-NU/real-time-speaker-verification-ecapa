@@ -1,7 +1,12 @@
 import os
 import torch
 import torchaudio
-from speechbrain.inference.speaker import SpeakerRecognition
+try:
+    # SpeechBrain >= 1.0
+    from speechbrain.inference.speaker import SpeakerRecognition
+except ImportError:
+    # SpeechBrain < 1.0 (Our stable version for Gatekeeper compatibility)
+    from speechbrain.pretrained import SpeakerRecognition
 
 class EcapaVerifier:
     def __init__(self, model_source="speechbrain/spkrec-ecapa-voxceleb", finetuned_weights_path=None):

@@ -16,3 +16,12 @@ models/
 *.yaml
 
 models/
+# Python Virtual Environment
+venv/
+env/
+
+# Audio Data & Temporary Files
+data/
+tmp_challenge_*.wav
+*.pth
+*.onnx
