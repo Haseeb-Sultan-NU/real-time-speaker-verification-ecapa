@@ -12,3 +12,7 @@ python-multipart==0.0.9
 openai-whisper
 pydub
 requests
+sqlalchemy
+psycopg2-binary
+alembic
+passlib[bcrypt]
