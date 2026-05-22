@@ -1,148 +1,123 @@
 # Real-Time Speaker Verification System (ECAPA-TDNN)
 
-![Status](https://img.shields.io/badge/status-active-success)
-![Domain](https://img.shields.io/badge/domain-audio%20biometrics-blue)
-![Model](https://img.shields.io/badge/model-ECAPA--TDNN-informational)
-![Framework](https://img.shields.io/badge/framework-PyTorch-red)
+![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+![Status](https://img.shields.io/badge/status-active-success?style=for-the-badge)
 
-Production-oriented audio biometric authentication system designed for **low-latency speaker verification**, **liveness detection**, and **robust performance across real-world audio conditions**.
-
----
-
-## System Summary
-
-| Component         | Details                                        |
-| ----------------- | ---------------------------------------------- |
-| Task              | Speaker Verification                           |
-| Model             | ECAPA-TDNN                                     |
-| Embedding Size    | 192-dim                                        |
-| Input Features    | Mel-Spectrogram (64 FBanks, 25ms window, 8kHz) |
-| Scoring           | Cosine Similarity                              |
-| Normalization     | z-norm / s-norm                                |
-| Deployment Target | Real-time (Web / Mobile)                       |
+A production-oriented audio biometric authentication system delivering **low-latency speaker verification**, **liveness detection**, and **cross-channel robustness** — fine-tuned on Urdu speech and deployed via FastAPI for real-time web and mobile use.
 
 ---
 
-| Component   | Details                                                                          |
-| ----------- | -------------------------------------------------------------------------------- |
-| Dataset     | Mozilla Common Voice (Urdu) + VoxCeleb subsets                                   |
-| Fine-Tuning | ECAPA-TDNN adapted to large Urdu dataset for improved recognition and robustness |
+## 📊 Performance
 
+| Metric | Value |
+|:---|:---|
+| **Equal Error Rate (EER)** | ~2–5% |
+| **Inference Latency** | Sub-second |
+| **Robustness** | Cross-channel stable (telephony ↔ microphone) |
 
-## Architecture Overview
+---
+
+## 🔧 System Specifications
+
+| Component | Details |
+|:---|:---|
+| **Model** | ECAPA-TDNN |
+| **Embedding Size** | 192-dim |
+| **Input Features** | Mel-Spectrogram (64 FBanks, 25ms window, 8kHz) |
+| **Scoring** | Cosine Similarity / PLDA |
+| **Normalization** | z-norm / s-norm |
+| **Dataset** | Mozilla Common Voice (Urdu) + VoxCeleb subsets |
+| **Deployment Target** | Real-time Web / Mobile (FastAPI) |
+
+---
+
+## 🏗️ Verification Pipeline
 
 ```
-Audio Input
-   ↓
-Preprocessing (Resampling, Framing, Mel-Spectrogram)
-   ↓
-Embedding Extraction (ECAPA-TDNN)
-   ↓
-Similarity Scoring (Cosine / PLDA)
-   ↓
-Score Normalization (z-norm / s-norm)
-   ↓
+Audio Input (.wav)
+      │
+      ▼
+Preprocessing
+(Resampling → 8kHz, Framing, Mel-Spectrogram extraction)
+      │
+      ▼
+Embedding Extraction
+(ECAPA-TDNN → 192-dim speaker embedding)
+      │
+      ▼
+Similarity Scoring
+(Cosine Similarity / PLDA)
+      │
+      ▼
+Score Normalization
+(z-norm / s-norm — cross-device stabilization)
+      │
+      ▼
 Decision Thresholding
-   ↓
+(FAR / FRR trade-off tuning)
+      │
+      ▼
 Liveness Verification Layer
+(Challenge-response — replay & spoofing prevention)
+      │
+      ▼
+OUTPUT: Verified / Rejected
 ```
 
 ---
 
-## Core System Components
+## 🚀 Core Components
 
-### 1. Data Pipeline
+**1. Data Pipeline**
+Audio resampled to 8kHz with structured Mel-spectrogram extraction (64 filter banks, 25ms window) ensuring consistent feature representation across devices and recording conditions.
 
-* Audio resampled to 8 kHz
-* Feature extraction via Mel-spectrograms
-* Structured preprocessing for consistent inference
+**2. Embedding Model — ECAPA-TDNN**
+Fine-tuned on Mozilla Common Voice (Urdu) + VoxCeleb subsets for:
+- Channel variability robustness
+- Noise-resilient speaker discrimination
+- Improved Urdu phoneme recognition
 
----
+**3. Scoring & Calibration**
+Cosine similarity scoring with z-norm and s-norm normalization stabilizes decision thresholds across microphone types, telephony channels, and acoustic environments.
 
-### 2. Embedding Model
+**4. Liveness Detection**
+Dynamic challenge-response prompts prevent replay attacks and pre-recorded spoofing, adding a behavioural verification layer on top of biometric matching.
 
-* ECAPA-TDNN architecture
-* 192-dimensional speaker embeddings
-* Fine-tuned for:
-
-  * Channel variability
-  * Noise robustness
-  * Speaker discrimination
-
----
-
-### 3. Scoring & Calibration
-
-* Cosine similarity-based scoring
-* Score normalization:
-
-  * z-norm
-  * s-norm
-* Stabilizes performance across devices and environments
+**5. Inference Layer**
+FastAPI-based deployment supporting low-latency, concurrent verification requests with Docker containerization for portable production deployment.
 
 ---
 
-### 4. Liveness Detection
+## 🔬 Experimental Focus
 
-* Dynamic challenge-response prompts
-* Prevents replay and pre-recorded spoofing attacks
-
----
-
-### 5. Inference Layer
-
-* Designed for real-time execution
-* Compatible with API-based deployment (FastAPI)
-* Supports low-latency verification workflows
+- Cross-channel verification: telephony (8kHz) vs. microphone recordings
+- Impact of z-norm vs. s-norm on EER reduction
+- FAR/FRR trade-off tuning across decision thresholds
+- Embedding stability analysis under varying SNR conditions
 
 ---
 
-## Performance Snapshot
+## 🛠️ Tech Stack
 
-| Metric                 | Value                |
-| ---------------------- | -------------------- |
-| Equal Error Rate (EER) | ~2–5%                |
-| Inference Latency      | Sub-second           |
-| Robustness             | Cross-channel stable |
-
----
-
-## Experimental Focus
-
-* Cross-channel speaker verification (telephony vs microphone)
-* Impact of normalization techniques on EER
-* FAR vs FRR trade-off tuning
-* Embedding stability under noisy conditions
+| Layer | Tools |
+|-------|-------|
+| **Modeling** | PyTorch, ECAPA-TDNN, pyannote.audio |
+| **Data Processing** | Librosa, NumPy, Pandas |
+| **Deployment** | FastAPI, Docker |
 
 ---
 
-## Tech Stack
-
-**Modeling**
-
-* PyTorch
-* ECAPA-TDNN
-* pyannote.audio
-
-**Data Processing**
-
-* Librosa
-* NumPy
-* Pandas
-
-**Deployment**
-
-* FastAPI
-* Docker
-
----
-
-## Repository Structure
+## 📂 Repository Structure
 
 ```
+real-time-speaker-verification-ecapa/
 ├── data/
 ├── models/
 ├── inference/
+│   └── run_inference.py
 ├── evaluation/
 ├── utils/
 ├── scripts/
@@ -151,7 +126,7 @@ Liveness Verification Layer
 
 ---
 
-## Quick Start
+## ⚙️ Quick Start
 
 ```bash
 git clone https://github.com/Haseeb-Sultan-NU/real-time-speaker-verification-ecapa.git
@@ -162,13 +137,9 @@ python inference/run_inference.py --input sample.wav
 
 ---
 
-## Roadmap
+## 🗺️ Roadmap
 
-* Real-time streaming inference
-* Edge/mobile deployment optimization
-* Advanced anti-spoofing (deepfake detection)
-* Batch inference optimization (GPU)
-
----
-
-
+- [ ] Real-time streaming inference
+- [ ] Edge / mobile deployment optimization
+- [ ] Advanced anti-spoofing (deepfake audio detection)
+- [ ] Batch inference optimization (GPU)
